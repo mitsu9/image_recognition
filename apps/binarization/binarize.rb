@@ -12,7 +12,7 @@ end
 def discriminant(file)
   image = CvMat.load(file)
   gray_img = image.BGR2GRAY
-  hist = histogram(gray_img)
+  hist = create_histogram(gray_img)
   eval_value, best_t = 0, 0
   (0...255).each{ |t|
     # t := 閾値
@@ -36,7 +36,7 @@ def discriminant(file)
   best_t
 end
 
-def histogram(gray_img)
+def create_histogram(gray_img)
   hist = Array.new(256, 0)
   [*0...gray_img.rows].product([*0...gray_img.cols]).each{ |(y, x)|
     b = gray_img.at(y, x)
@@ -47,21 +47,31 @@ end
 
 # 微分ヒストグラム法
 def diff_histogram(file)
-  200
+  image = CvMat.load(file)
+  gray_img = image.BGR2GRAY
+  hist = create_diff_histogram(gray_img)
+  hist.index(hist.max)
 end
 
-def show_image(image, t)
-  window = GUI::Window.new("binarize by #{t}")
-  window.show(image)
+def create_diff_histogram(gray_img)
+  hist = Array.new(256, 0)
+  [*0...gray_img.rows].product([*0...gray_img.cols]).each{ |(y, x)|
+    b = gray_img.at(y, x)
+    diff = 0
+    # 周辺8マスとの差分の絶対値の総和の出す.
+    # 自分自身との差は0になって結果に影響ないので9マス分計算している.
+    [*y-1..y+1].product([*x-1..x+1]).each{ |(y2, x2)|
+      if y2.between?(0, gray_img.rows-1) && x2.between?(0, gray_img.cols-1)
+        diff += (b[0] - gray_img.at(y2, x2)[0]).abs
+      end
+    }
+    hist[b[0]] += diff
+  }
+  hist
 end
 
 # main
 file = ARGV[0]
-
-# 元の画像の表示
-image = CvMat.load(file)
-# GUI::Window.new("Original Image").show(image)
-# GUI::Window.new("Gray-scale Image").show(image.BGR2GRAY)
 
 # tを様々な方法で計算する
 t_dis = discriminant(file)
@@ -72,6 +82,9 @@ img_dis = binarize(file, t_dis)
 img_diff = binarize(file, t_diff)
 
 # 表示
-show_image(img_dis, t_dis)
-# show_image(img_diff, t_diff)
+image = CvMat.load(file)
+GUI::Window.new("Original Image").show(image)
+GUI::Window.new("Gray-scale Image").show(image.BGR2GRAY)
+GUI::Window.new("Discriminant analysis method (t = #{t_dis})").show(img_dis)
+GUI::Window.new("Differential histogram method (t = #{t_diff})").show(img_diff)
 GUI::wait_key
